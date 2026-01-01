@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MDT会诊系统 - 会诊详情 (原型)</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Sticky Header -->
+    <header class="header">
+        <div class="header-left">
+            <div class="back-btn">← 返回列表</div>
+            <div class="patient-info">
+                丽丽 <span class="tag">女</span> <span class="tag">57岁</span>
+            </div>
+        </div>
+
+        <!-- Step Indicator -->
+        <div class="step-indicator">
+            <div class="step-item active">1. 准备中</div>
+            <div class="step-item">2. 问诊中</div>
+            <div class="step-item">3. 文书/意见</div>
+            <div class="step-item">4. 报告生成</div>
+        </div>
+
+        <div class="header-right">
+            <div style="font-size:12px; color:#666; margin-right:8px;">在线专家:</div>
+            <div class="expert-avatars">
+                <div class="avatar online" title="张三 (内科)">张</div>
+                <div class="avatar online" title="李四 (精神科)">李</div>
+                <div class="avatar online" title="王五 (神经内科)">王</div>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <!-- Tabs Navigation -->
+        <div class="tabs-nav">
+            <div class="tab-btn active" data-target="tab1">
+                <span class="lock-icon">🔓</span> 会诊前文书
+            </div>
+            <div class="tab-btn disabled" data-target="tab2">
+                <span class="lock-icon">🔒</span> 专家问诊
+            </div>
+            <div class="tab-btn disabled" data-target="tab3">
+                <span class="lock-icon">🔒</span> 会诊后文书
+            </div>
+            <div class="tab-btn disabled" data-target="tab4">
+                <span class="lock-icon">🔒</span> 专家意见
+            </div>
+             <div class="tab-btn disabled" data-target="tab5">
+                <span class="lock-icon">🔒</span> 会诊报告
+            </div>
+        </div>
+
+        <!-- Tab 1: Pre-Consultation Document -->
+        <div id="tab1" class="tab-content active">
+            <div id="pre-doc-content">
+                <!-- Injected via JS -->
+            </div>
+        </div>
+
+        <!-- Tab 2: Expert Consultation (ASR & Dialog) -->
+        <div id="tab2" class="tab-content">
+            <div class="split-view">
+                <div class="asr-panel">
+                    <div class="asr-text">
+                        <!-- Real-time text stream simulation -->
+                        <span style="color:#666;">[ASR系统就绪，等待录音...]</span>
+                    </div>
+                    <div class="audio-controls">
+                        <button class="control-btn btn-record" title="开始录音">🎤</button>
+                        <button class="control-btn btn-pause" title="暂停/提交片段">⏸</button>
+                    </div>
+                </div>
+                <div class="dialog-panel">
+                    <div class="section-title">智能问诊记录 (AI清洗中...)</div>
+                    <div class="dialog-list">
+                        <!-- Cards injected via JS -->
+                    </div>
+                    <div style="margin-top:20px; text-align:center;">
+                        <button class="btn btn-primary" onclick="submitDialogue()">提交问诊 & 进入下一阶段</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: Post-Consultation Document -->
+        <div id="tab3" class="tab-content">
+             <div class="split-view">
+                <!-- Left: Reference (Dialog) -->
+                <div class="left-panel">
+                    <div class="panel-header">
+                        <span>参考：问诊记录</span>
+                        <span style="font-size: 11px; font-weight: normal; color: #999;">点击条目可引用</span>
+                    </div>
+                    <div id="ref-dialog-list" class="panel-content">
+                        <!-- Loaded dynamically -->
+                        <div style="text-align: center; color: #999; padding: 20px;">
+                            暂无问诊记录
+                        </div>
+                    </div>
+                </div>
+                <!-- Right: Form -->
+                <div id="post-doc-form" class="right-panel">
+                    <!-- Injected via JS -->
+                </div>
+            </div>
+        </div>
+
+         <!-- Tab 4: Expert Opinions -->
+         <div id="tab4" class="tab-content">
+            <div class="section-title">由于是助理端视图，此处可管理录音归属及查看专家提交状态</div>
+            <div id="expert-grid" class="expert-grid">
+                <!-- Cards injected via JS -->
+            </div>
+            <div id="expert-actions" class="action-bar">
+                <!-- Actions -->
+            </div>
+        </div>
+
+        <!-- Tab 5: Final Report -->
+        <div id="tab5" class="tab-content" style="background:#525659; padding:40px; text-align:center;">
+            <div class="report-paper" id="report-preview">
+                <!-- Injected via JS -->
+            </div>
+             <div class="action-bar" style="justify-content:center; margin-top:20px;">
+                <button class="btn btn-primary" onclick="alert('报告已归档！');">确认并归档</button>
+                <button class="btn btn-default" onclick="alert('PDF导出中...');">导出 PDF</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Expert Selection Modal for Report Generation -->
+    <div id="expert-select-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="width: 500px;">
+            <div class="modal-header">
+                <h3>生成会诊报告 - 选择专家意见</h3>
+                <button class="close-btn" onclick="closeExpertSelectModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom:16px; color:#666;">请勾选需要纳入最终报告的专家意见：</p>
+                <div id="expert-select-list" style="max-height: 300px; overflow-y: auto;">
+                    <!-- Injected via JS -->
+                </div>
+            </div>
+            <div class="modal-footer" style="text-align: right; margin-top: 20px;">
+                <button class="btn btn-default" onclick="closeExpertSelectModal()">取消</button>
+                <button class="btn btn-primary" onclick="generateFinalReport()">生成报告</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

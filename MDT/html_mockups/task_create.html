@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新增/编辑会诊任务 - MDT多端系统</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .form-layout {
+            display: flex;
+            gap: 24px;
+            margin-top: 24px;
+        }
+        
+        /* Left Sidebar: Anchor Nav */
+        .anchor-nav {
+            width: 200px;
+            position: sticky;
+            top: 80px;
+            height: fit-content;
+            background: #fff;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            padding: 8px 0;
+        }
+
+        .anchor-item {
+            padding: 12px 24px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            border-left: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .anchor-item:hover {
+            color: var(--primary-color);
+            background: #f6ffed;
+        }
+
+        .anchor-item.active {
+            color: var(--primary-color);
+            border-left-color: var(--primary-color);
+            background: #e6f7ff;
+            font-weight: 500;
+        }
+
+        /* Right Content: Form */
+        .form-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .form-section {
+            background: #fff;
+            padding: 24px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .form-label .required {
+            color: var(--error-color);
+            margin-right: 4px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary-color);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+        }
+
+        textarea.form-control {
+            resize: vertical;
+            line-height: 1.6;
+        }
+
+        /* Expert Scheduling Grid */
+        .expert-schedule-container {
+            display: flex;
+            gap: 24px;
+            height: 500px;
+        }
+
+        .expert-selector {
+            flex: 2;
+            border-right: 1px solid var(--border-color);
+            padding-right: 24px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .ai-recommendation {
+            flex: 1;
+            background: #f0f7ff;
+            padding: 16px;
+            border-radius: 4px;
+            border: 1px solid #bae7ff;
+        }
+
+        .expert-filter {
+            margin-bottom: 12px;
+        }
+
+        .expert-list {
+            flex: 1;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 8px;
+        }
+
+        .expert-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+        }
+
+        .expert-item:hover {
+            background: #fafafa;
+        }
+
+        .expert-item input {
+            margin-right: 12px;
+        }
+
+        .rec-tag-cloud {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .rec-tag {
+            padding: 4px 12px;
+            background: #fff;
+            border: 1px solid #d9d9d9;
+            border-radius: 16px;
+            color: #666;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+
+        .rec-tag.highlight {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+            background: #e6f7ff;
+            font-weight: bold;
+        }
+
+        .rec-tag.checked {
+            background: var(--primary-color);
+            color: #fff;
+            border-color: var(--primary-color);
+        }
+
+        /* Footer */
+        .footer-bar {
+            position: sticky;
+            bottom: 0;
+            background: #fff;
+            padding: 16px 24px;
+            border-top: 1px solid var(--border-color);
+            text-align: right;
+            box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div class="header">
+        <div class="header-left">
+            <div class="back-btn" onclick="history.back()">←</div>
+            <div style="font-size: 18px; font-weight: bold;">新增会诊任务</div>
+        </div>
+        <div class="header-right">
+            <div class="user-profile">
+                <span>助理医生</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-container form-layout">
+        
+        <!-- Left Sidebar -->
+        <div class="anchor-nav">
+            <div class="anchor-item active" onclick="scrollToSection('sec-basic')">1. 基本信息</div>
+            <div class="anchor-item" onclick="scrollToSection('sec-history')">2. 详细病史</div>
+            <div class="anchor-item" onclick="scrollToSection('sec-expert')">3. 专家调度</div>
+        </div>
+
+        <!-- Right Form -->
+        <div class="form-content">
+            
+            <!-- Section 1: Basic Info -->
+            <div id="sec-basic" class="form-section">
+                <div class="section-title">基本信息</div>
+                <div class="info-grid" style="grid-template-columns: 1fr 1fr;">
+                    <div class="form-group">
+                        <label class="form-label"><span class="required">*</span>患者姓名</label>
+                        <input type="text" class="form-control" name="name" placeholder="请输入患者姓名">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label"><span class="required">*</span>性别</label>
+                        <select class="form-control" name="gender">
+                            <option value="male">男</option>
+                            <option value="female">女</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label"><span class="required">*</span>年龄</label>
+                        <input type="number" class="form-control" name="age" placeholder="例如：57">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">门诊ID</label>
+                        <input type="text" class="form-control" name="id" placeholder="系统自动生成" disabled value="20251216001">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label"><span class="required">*</span>主诉 (输入以触发AI推荐)</label>
+                    <textarea class="form-control" id="input-complaint" rows="2" placeholder="简要描述患者主要症状..."></textarea>
+                </div>
+            </div>
+
+            <!-- Section 2: Detailed History -->
+            <div id="sec-history" class="form-section">
+                <div class="section-title">详细病史 (部分为选填)</div>
+                <div class="form-group">
+                    <label class="form-label"><span class="required">*</span>现病史</label>
+                    <textarea class="form-control" rows="5" placeholder="详细描述发病经过..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label"><span class="required">*</span>目前治疗方案</label>
+                    <textarea class="form-control" rows="3" placeholder="当前用药及治疗情况..."></textarea>
+                </div>
+                <!-- Foldable Section for Optional Fields -->
+                <details open style="border: 1px solid #eee; padding: 12px; border-radius: 4px; margin-top: 16px;">
+                    <summary style="cursor: pointer; font-weight: 500; color: var(--primary-color);">更多选填信息 (既往史/家族史等)</summary>
+                    <div style="margin-top: 16px;">
+                        <div class="form-group">
+                            <label class="form-label">既往史</label>
+                            <textarea class="form-control" rows="2"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">家族史</label>
+                            <textarea class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                </details>
+            </div>
+
+            <!-- Section 3: Expert Scheduling -->
+            <div id="sec-expert" class="form-section">
+                <div class="section-title">专家调度</div>
+                
+                <div class="expert-schedule-container">
+                    <!-- Left: Selector -->
+                    <div class="expert-selector">
+                        <div class="expert-filter">
+                            <input type="text" class="form-control" placeholder="搜索专家姓名或科室...">
+                        </div>
+                        <div class="expert-list" id="expert-list-container">
+                            <!-- Populated via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Right: AI Recommendation -->
+                    <div class="ai-recommendation">
+                        <div style="font-weight: bold; color: var(--primary-color); margin-bottom: 8px;">
+                            🤖 AI 智能推荐
+                        </div>
+                        <div style="font-size: 12px; color: #666; margin-bottom: 12px;">
+                            系统根据主诉和病史，建议邀请以下科室专家：
+                        </div>
+                        <div class="rec-tag-cloud" id="rec-tags">
+                            <span class="rec-tag">精神科</span>
+                            <span class="rec-tag">神经内科</span>
+                            <span class="rec-tag">心理治疗</span>
+                            <span class="rec-tag">中医科</span>
+                            <span class="rec-tag">营养科</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="height: 60px;"></div> <!-- Spacer -->
+
+        </div>
+    </div>
+
+    <!-- Sticky Footer -->
+    <div class="footer-bar">
+        <button class="btn btn-default" onclick="history.back()">取消</button>
+        <button class="btn btn-primary" onclick="saveTask()">保存并发布</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

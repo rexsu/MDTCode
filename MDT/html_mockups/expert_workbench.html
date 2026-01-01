@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MDT会诊系统 - 专家工作台</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body id="page-expert-workbench">
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <div style="font-size: 20px; font-weight: bold; color: var(--primary-color);">MDT 专家工作台</div>
+        </div>
+        <div class="header-right">
+            <span>内科 - 张专家</span>
+            <div class="avatar online">张</div>
+            <button class="btn btn-secondary btn-sm" onclick="openSignatureModal()" style="margin-left: 10px;">
+                <i class="icon">🖊️</i> 签名设置
+            </button>
+        </div>
+    </header>
+
+    <!-- Signature Modal -->
+    <div id="signature-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="width: 600px;">
+            <div class="modal-header">
+                <h3>设置电子签名</h3>
+                <button class="close-btn" onclick="closeSignatureModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <p class="helper-text">请在下方区域内绘制您的签名，该签名将用于会诊报告的签署。</p>
+                <div class="signature-wrapper">
+                    <canvas id="signature-canvas" width="550" height="200"></canvas>
+                    <div class="placeholder-text" id="sig-placeholder">在此处签名</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="clearSignature()">清除</button>
+                <button class="btn btn-primary" onclick="saveSignature()">确认保存</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <!-- Dashboard Grid -->
+        <div class="dashboard-grid">
+            
+            <!-- Column 1: Invitations (High Priority) -->
+            <div class="dashboard-col">
+                <div class="col-header">
+                    <span class="col-title">待处理邀请</span>
+                    <span class="badge badge-red">1</span>
+                </div>
+                <div class="col-content">
+                    <div class="task-card card card-highlight">
+                        <div class="card-header-row">
+                            <span class="tag-time">2025-12-18 10:00</span>
+                            <span class="tag-status">待响应</span>
+                        </div>
+                        <div class="patient-line-simple">
+                            <strong>王小明</strong> | 男 | 14岁
+                        </div>
+                        <div class="p-complaint-simple">主诉：厌学，情绪波动大...</div>
+                        <div class="action-row-split">
+                             <button class="btn btn-default-danger btn-sm" onclick="alert('拒绝需填写理由')">拒绝</button>
+                             <button class="btn btn-primary btn-sm" onclick="alert('已接受邀请')">接受邀请</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Column 2: Upcoming (Accepted) -->
+            <div class="dashboard-col">
+                <div class="col-header">
+                    <span class="col-title">我的会诊 (今日)</span>
+                    <span class="badge">1</span>
+                </div>
+                <div class="col-content">
+                    <div class="task-card card">
+                        <div class="card-header-row">
+                            <span class="tag-time text-primary">今日 14:00</span>
+                            <span class="tag-status status-ready">准备中</span>
+                        </div>
+                        <div class="patient-line-simple">
+                            <strong>丽丽</strong> | 女 | 57岁
+                        </div>
+                        <div class="p-complaint-simple">主诉：眠差10余年，情绪低...</div>
+                        <div class="action-row">
+                             <button class="btn btn-primary full-width" onclick="window.location.href='expert_detail.html?id=1'">进入会诊室</button>
+                             <div style="text-align:center; margin-top:8px; font-size:12px; color:#999;">距离开始还有 15分钟</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Column 3: History -->
+            <div class="dashboard-col">
+                <div class="col-header">
+                    <span class="col-title">历史归档</span>
+                </div>
+                <div class="col-content">
+                    <div class="task-card card task-card-gray">
+                        <div class="card-header-row">
+                            <span class="tag-time">2025-12-10 15:30</span>
+                            <span class="tag-status status-done">已完成</span>
+                        </div>
+                        <div class="patient-line-simple">
+                            <strong>陈某某</strong> | 男 | 68岁
+                        </div>
+                         <div class="action-row">
+                             <button class="btn btn-default btn-sm full-width">查看报告</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

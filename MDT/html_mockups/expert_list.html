@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MDT会诊系统 - 专家库管理</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Component specific styles */
+        .page-nav {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 0;
+            border-bottom: 2px solid transparent;
+            padding-bottom: 12px;
+        }
+        
+        .page-nav-item {
+            font-size: 16px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            text-decoration: none;
+            position: relative;
+        }
+        
+        .page-nav-item.active {
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+        
+        .page-nav-item.active::after {
+            content: '';
+            position: absolute;
+            bottom: -14px; /* Align with container padding */
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--primary-color);
+        }
+
+        .tab-controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .tab-btn {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            color: var(--text-secondary);
+        }
+        
+        .tab-btn.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+            font-weight: bold;
+        }
+        
+        .expert-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .expert-table th, .expert-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .expert-table th {
+            background: #fafafa;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+        
+        .signature-thumb {
+            height: 40px;
+            border: 1px solid #eee;
+            cursor: zoom-in;
+            background: #fff;
+        }
+
+        .tag-manager-container {
+            padding: 20px;
+            background: #fff;
+            border-radius: 4px;
+        }
+
+        .tag-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            max-width: 400px;
+        }
+
+        .tag-cloud-editor {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .edit-tag {
+            padding: 6px 12px;
+            background: #f5f5f5;
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .edit-tag:hover {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .tag-close {
+            cursor: pointer;
+            font-size: 12px;
+            color: #999;
+        }
+        
+        .tag-close:hover {
+            color: var(--error-color);
+        }
+    </style>
+</head>
+<body id="page-expert-list">
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <div style="font-size: 20px; font-weight: bold; color: var(--primary-color);">MDT 多学科会诊系统</div>
+            <div class="tag" style="background:var(--primary-color); color:#fff; border:none;">助理端</div>
+            
+            <div style="width: 1px; height: 20px; background: #ddd; margin: 0 16px;"></div>
+            
+            <!-- Context Nav -->
+             <div class="page-nav">
+                <a href="assistant_list.html" class="page-nav-item">会诊任务</a>
+                <a href="expert_list.html" class="page-nav-item active">专家库管理</a>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="expert-avatars">
+                <div class="avatar" style="background:#87d068;">助</div>
+            </div>
+            <span>管理员</span>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <!-- Sub Tabs -->
+        <div class="tab-controls">
+            <div class="tab-btn active" onclick="switchExpertTab('audit')">注册审核 <span class="badge" style="background: #ff4d4f; color: white; padding: 2px 6px; border-radius: 10px; font-size: 12px;">2</span></div>
+            <div class="tab-btn" onclick="switchExpertTab('types')">专家类型/科室管理</div>
+            <div class="tab-btn" onclick="switchExpertTab('library')">已入库专家</div>
+        </div>
+
+        <!-- Tab 1: Audit List -->
+        <div id="tab-audit" class="expert-tab-content">
+            <div class="card" style="padding: 0;">
+                <table class="expert-table">
+                    <thead>
+                        <tr>
+                            <th>申请时间</th>
+                            <th>姓名</th>
+                            <th>所属科室</th>
+                            <th>申请类型标签</th>
+                            <th>电子签名</th>
+                            <th>状态</th>
+                            <th style="width: 180px;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>2025-12-16 10:30</td>
+                            <td><span style="font-weight:bold;">林医生</span></td>
+                            <td>神经内科</td>
+                            <td>
+                                <span class="tag">神经内科</span>
+                                <span class="tag">脑血管病</span>
+                            </td>
+                            <td>
+                                <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iNDAiPjx0ZXh0IHg9IjEwIiB5PSIzMCIgZmlsGw9IiMzMzMiIHN0eWxlPSJmb250LXNpemU6MjBweDtmb250LWZhbWlseTpjdXJzaXZlOyI+5p6X5Yy755SfPC90ZXh0Pjwvc3ZnPg==" class="signature-thumb" alt="签名" onclick="viewSignature(this.src)">
+                            </td>
+                            <td><span class="tag" style="background: #fffbe6; color: #faad14; border-color: #ffe58f;">待审核</span></td>
+                            <td>
+                                <button class="btn btn-primary btn-sm" onclick="approveExpert(this)">通过</button>
+                                <button class="btn btn-text-danger btn-sm" onclick="rejectExpert(this)">驳回</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>2025-12-16 14:15</td>
+                            <td><span style="font-weight:bold;">赵专家</span></td>
+                            <td>心理科</td>
+                            <td>
+                                <span class="tag">心理治疗</span>
+                                <span class="tag">认知行为</span>
+                            </td>
+                            <td>
+                                <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iNDAiPjx0ZXh0IHg9IjEwIiB5PSIzMCIgZmlsGw9IiMzMzMiIHN0eWxlPSJmb250LXNpemU6MjBweDtmb250LWZhbWlseTpjdXJzaXZlOyI+6LW15LiT5a62PC90ZXh0Pjwvc3ZnPg==" class="signature-thumb" alt="签名" onclick="viewSignature(this.src)">
+                            </td>
+                            <td><span class="tag" style="background: #fffbe6; color: #faad14; border-color: #ffe58f;">待审核</span></td>
+                            <td>
+                                <button class="btn btn-primary btn-sm" onclick="approveExpert(this)">通过</button>
+                                <button class="btn btn-text-danger btn-sm" onclick="rejectExpert(this)">驳回</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tab 2: Type Management -->
+        <div id="tab-types" class="expert-tab-content" style="display: none;">
+            <div class="card tag-manager-container">
+                <div style="margin-bottom: 24px;">
+                    <h3 style="margin-bottom: 12px; font-size: 16px;">添加新类型</h3>
+                    <div class="tag-input-group">
+                        <input type="text" id="new-type-input" class="form-control" placeholder="输入专家类型名称（如：老年精神科）">
+                        <button class="btn btn-primary" onclick="addNewType()">添加</button>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 style="margin-bottom: 12px; font-size: 16px;">现有专家类型标签</h3>
+                    <div class="tag-cloud-editor" id="expert-types-list">
+                        <!-- Populated by JS -->
+                        <div class="edit-tag">精神科 <span class="tag-close">×</span></div>
+                        <div class="edit-tag">神经内科 <span class="tag-close">×</span></div>
+                        <div class="edit-tag">心理治疗 <span class="tag-close">×</span></div>
+                        <div class="edit-tag">物理治疗 <span class="tag-close">×</span></div>
+                        <div class="edit-tag">影像科 <span class="tag-close">×</span></div>
+                        <div class="edit-tag">药剂科 <span class="tag-close">×</span></div>
+                        <div class="edit-tag">营养科 <span class="tag-close">×</span></div>
+                        <div class="edit-tag">儿童青少年精神科 <span class="tag-close">×</span></div>
+                        <div class="edit-tag">老年精神科 <span class="tag-close">×</span></div>
+                        <div class="edit-tag">中医科 <span class="tag-close">×</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: Library (Existing Experts) -->
+        <div id="tab-library" class="expert-tab-content" style="display: none;">
+             <div class="filter-bar card" style="margin-bottom: 16px;">
+                <div class="filter-inputs">
+                    <input type="text" placeholder="搜索专家姓名/科室..." class="input-search">
+                    <select class="form-control" style="width: 150px;">
+                        <option value="">所有科室</option>
+                        <option value="psych">精神科</option>
+                        <option value="neuro">神经内科</option>
+                    </select>
+                </div>
+                <div class="filter-actions">
+                    <button class="btn btn-default">导出名单</button>
+                </div>
+            </div>
+
+            <div class="card" style="padding: 0;">
+                <table class="expert-table">
+                    <thead>
+                        <tr>
+                            <th>姓名</th>
+                            <th>科室</th>
+                            <th>职称</th>
+                            <th>擅长标签</th>
+                            <th>入库时间</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="library-list-body">
+                        <!-- Static Mock Data -->
+                        <tr>
+                            <td>张三</td>
+                            <td>神经内科</td>
+                            <td>主任医师</td>
+                            <td><span class="tag">脑血管</span> <span class="tag">头痛</span></td>
+                            <td>2025-01-10</td>
+                            <td><span class="tag" style="color:var(--success-color); background:#f6ffed; border-color:#b7eb8f;">正常</span></td>
+                            <td><button class="btn btn-default btn-sm">编辑</button></td>
+                        </tr>
+                        <tr>
+                            <td>李四</td>
+                            <td>精神科</td>
+                            <td>副主任医师</td>
+                            <td><span class="tag">抑郁症</span> <span class="tag">焦虑症</span></td>
+                            <td>2025-01-12</td>
+                            <td><span class="tag" style="color:var(--success-color); background:#f6ffed; border-color:#b7eb8f;">正常</span></td>
+                            <td><button class="btn btn-default btn-sm">编辑</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Signature Preview Modal -->
+    <div id="sig-preview-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="width: 500px; text-align: center;">
+            <div class="modal-header">
+                <h3>电子签名预览</h3>
+                <button class="close-btn" onclick="document.getElementById('sig-preview-modal').style.display='none'">×</button>
+            </div>
+            <div class="modal-body">
+                <img id="sig-preview-img" src="" style="max-width: 100%; border: 1px solid #eee;">
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        // Inline script for page-specific logic or init
+        // Ideally should be in script.js but putting here for simplicity of the mockup
+        
+        function switchExpertTab(tabName) {
+            // Hide all
+            document.querySelectorAll('.expert-tab-content').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            
+            // Show target
+            document.getElementById('tab-' + tabName).style.display = 'block';
+            
+            // Find button and add active
+            // Simple mapping since buttons are in order
+            const buttons = document.querySelectorAll('.tab-btn');
+            if(tabName === 'audit') buttons[0].classList.add('active');
+            if(tabName === 'types') buttons[1].classList.add('active');
+            if(tabName === 'library') buttons[2].classList.add('active');
+        }
+
+        function viewSignature(src) {
+            document.getElementById('sig-preview-img').src = src;
+            document.getElementById('sig-preview-modal').style.display = 'flex';
+        }
+
+        function approveExpert(btn) {
+            if(confirm('确认通过该专家的申请吗？')) {
+                // Determine row
+                const row = btn.closest('tr');
+                const name = row.cells[1].innerText;
+                const dept = row.cells[2].innerText;
+                
+                // Remove from this table
+                row.style.background = '#f6ffed';
+                setTimeout(() => {
+                    row.remove();
+                    
+                    // Add to library list (Mock)
+                    const libBody = document.getElementById('library-list-body');
+                    const newRow = document.createElement('tr');
+                    newRow.innerHTML = `
+                        <td>${name}</td>
+                        <td>${dept}</td>
+                        <td>主治医师</td>
+                        <td><span class="tag">新入库</span></td>
+                        <td>${new Date().toISOString().split('T')[0]}</td>
+                        <td><span class="tag" style="color:var(--success-color); background:#f6ffed; border-color:#b7eb8f;">正常</span></td>
+                        <td><button class="btn btn-default btn-sm">编辑</button></td>
+                    `;
+                    libBody.insertBefore(newRow, libBody.firstChild);
+                    
+                    // Update badge
+                    const badge = document.querySelector('.badge');
+                    if(badge) badge.innerText = parseInt(badge.innerText) - 1;
+                    
+                    alert('专家 ' + name + ' 已审核通过并入库！');
+                }, 500);
+            }
+        }
+
+        function rejectExpert(btn) {
+            const reason = prompt('请输入驳回原因:', '资料不完整');
+            if (reason) {
+                const row = btn.closest('tr');
+                row.style.background = '#fff1f0';
+                setTimeout(() => {
+                    row.remove();
+                    const badge = document.querySelector('.badge');
+                    if(badge) badge.innerText = parseInt(badge.innerText) - 1;
+                    alert('已驳回，原因已发送给申请人。');
+                }, 500);
+            }
+        }
+
+        function addNewType() {
+            const input = document.getElementById('new-type-input');
+            const val = input.value.trim();
+            if(!val) return;
+            
+            const container = document.getElementById('expert-types-list');
+            
+            // Check duplicate
+            // ... simple mock
+            
+            const tag = document.createElement('div');
+            tag.className = 'edit-tag';
+            tag.innerHTML = `${val} <span class="tag-close" onclick="this.parentElement.remove()">×</span>`;
+            
+            container.appendChild(tag);
+            input.value = '';
+        }
+    </script>
+</body>
+</html>

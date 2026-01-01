@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MDT会诊系统 - 专家诊室</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body id="page-expert-detail">
+    <!-- Expert Header -->
+    <header class="header">
+        <div class="header-left">
+            <div class="back-btn" onclick="window.location.href='expert_workbench.html'">← 退出会诊</div>
+            <div class="patient-info">
+                丽丽 <span class="tag">女</span> <span class="tag">57岁</span>
+                <span class="status-pill status-ready">会诊准备中</span>
+            </div>
+        </div>
+        <div class="header-center" id="expert-step-msg" style="color: #666; font-size: 14px;">
+            当前阶段: 待主持人开启
+        </div>
+        <div class="header-right">
+             <div style="font-size:12px; color:#666; margin-right:8px;">在线:</div>
+             <div class="expert-avatars">
+                <div class="avatar online" title="张三 (内科)">我</div>
+                <div class="avatar online" title="李四 (精神科)">李</div>
+                <div class="avatar online" title="王五 (神经内科)">王</div>
+                <div class="avatar assistant" title="助理">助</div>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <!-- Tabs Navigation (Expert View) -->
+        <div class="tabs-nav">
+            <div class="tab-btn active" data-target="tab1">
+                <span class="lock-icon">🔓</span> 会诊前文书
+            </div>
+            <!-- Expert does NOT see Tab 2 (Consultation/Recorder) -->
+            <div class="tab-btn disabled" data-target="tab3">
+                <span class="lock-icon">🔒</span> 会诊文书(只读)
+            </div>
+            <div class="tab-btn disabled" data-target="tab4">
+                <span class="lock-icon">🔒</span> 我的意见(核心)
+            </div>
+             <div class="tab-btn disabled" data-target="tab5">
+                <span class="lock-icon">🔒</span> 会诊报告
+            </div>
+        </div>
+
+        <!-- Tab 1: Pre-Consultation (Read Only) -->
+        <div id="tab1" class="tab-content active">
+            <div id="pre-doc-content">
+                <!-- Injected via JS -->
+            </div>
+        </div>
+
+        <!-- Tab 3: Post-Consultation (Read Only) -->
+        <div id="tab3" class="tab-content">
+             <div id="post-doc-readonly">
+                 <div class="empty-state">主持人尚未提交会诊文书</div>
+             </div>
+        </div>
+
+         <!-- Tab 4: Expert Opinion (Editor + Copilot) -->
+         <div id="tab4" class="tab-content">
+            <div class="split-view" style="height: 600px;">
+                <!-- Left: Editor -->
+                <div style="width: 60%; padding: 16px; display: flex; flex-direction: column;">
+                    <div class="section-title">我的会诊意见</div>
+                    <textarea id="opinion-editor" style="flex: 1; border: 1px solid #ddd; padding: 12px; font-family: inherit; line-height: 1.6; resize: none;" 
+                    placeholder="请输入您的会诊意见，或从右侧参考AI建议..."></textarea>
+                    <div style="margin-top: 16px; text-align: right;">
+                        <span id="save-status" style="color: #999; font-size: 12px; margin-right: 12px;">已自动保存 14:26</span>
+                        <button class="btn btn-primary" onclick="submitExpertOpinion()">提交意见</button>
+                    </div>
+                </div>
+
+                <!-- Right: AI Copilot -->
+                <div style="width: 40%; background: #f0f7ff; padding: 16px; border-left: 1px solid #bae7ff; overflow-y: auto;">
+                    <div class="copilot-header">
+                        <span style="font-weight: bold; color: #1890FF;">🤖 AI 辅助建议</span>
+                        <span style="font-size: 12px; color: #666;">点击 + 采纳</span>
+                    </div>
+                    <div id="copilot-suggestions">
+                        <!-- Injected via JS -->
+                        <div class="copilot-loading">正在分析问诊录音...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 5: Report (Sign) -->
+        <div id="tab5" class="tab-content" style="background:#525659; padding:40px; text-align:center;">
+             <div class="report-paper" id="report-preview">
+                <!-- Injected via JS -->
+            </div>
+             <div class="action-bar" style="justify-content:center; margin-top:20px;">
+                <div style="background: #fff; padding: 10px; border-radius: 4px; display: flex; align-items: center; gap: 10px;">
+                    <span>我的签名:</span>
+                    <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMzAiPjx0ZXh0IHg9IjEwIiB5PSIyMCIgZm9udC1mYW1pbHk9ImN1cnNpdmUiIHN0eWxlPSJmb250LXN0eWxlOml0YWxpYyI+U2lnbmVkPC90ZXh0Pjwvc3ZnPg==" height="30">
+                </div>
+                <button class="btn btn-primary" onclick="alert('已确认并签署！')">确认签署</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

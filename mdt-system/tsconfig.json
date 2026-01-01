@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@mdt/database": ["packages/database/index.ts"],
+      "@mdt/web/*": ["apps/web/src/*"],
+      "@mdt/api/*": ["apps/api/src/*"]
+    },
+    "target": "es2019",
+    "module": "commonjs",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  }
+}

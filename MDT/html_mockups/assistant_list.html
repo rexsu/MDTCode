@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MDT会诊系统 - 助理后台</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .page-nav {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 0;
+            border-bottom: 2px solid transparent;
+            padding-bottom: 12px;
+        }
+        
+        .page-nav-item {
+            font-size: 16px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            text-decoration: none;
+            position: relative;
+        }
+        
+        .page-nav-item.active {
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+        
+        .page-nav-item.active::after {
+            content: '';
+            position: absolute;
+            bottom: -14px; /* Align with container padding */
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--primary-color);
+        }
+    </style>
+</head>
+<body id="page-assistant-list">
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <div style="font-size: 20px; font-weight: bold; color: var(--primary-color);">MDT 多学科会诊系统</div>
+            <div class="tag" style="background:var(--primary-color); color:#fff; border:none;">助理端</div>
+            
+            <div style="width: 1px; height: 20px; background: #ddd; margin: 0 16px;"></div>
+            
+            <!-- Context Nav -->
+             <div class="page-nav">
+                <a href="assistant_list.html" class="page-nav-item active">会诊任务</a>
+                <a href="expert_list.html" class="page-nav-item">专家库管理</a>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="expert-avatars">
+                <div class="avatar" style="background:#87d068;">助</div>
+            </div>
+            <span>管理员</span>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <!-- Filter Bar -->
+        <div class="filter-bar card">
+            <div class="filter-inputs">
+                <input type="text" placeholder="搜索患者姓名/ID..." class="input-search">
+                <input type="date" class="input-date">
+                <span>至</span>
+                <input type="date" class="input-date">
+            </div>
+            <div class="filter-actions">
+                <button class="btn btn-primary" onclick="window.location.href='task_create.html'">+ 新增会诊</button>
+            </div>
+        </div>
+
+        <!-- Task Tabs -->
+        <div class="task-tabs">
+            <div class="task-tab active">待会诊 <span class="badge">3</span></div>
+            <div class="task-tab">已会诊</div>
+            <div class="task-tab">超期/取消</div>
+        </div>
+
+        <!-- Task List -->
+        <div class="task-list">
+            <!-- Card 1: Today, Ready -->
+            <div class="task-card card">
+                <div class="task-time-col">
+                    <div class="task-date">今日 14:00</div>
+                    <div class="task-status status-ready">即将开始</div>
+                </div>
+                <div class="task-info-col">
+                    <div class="patient-line">
+                        <span class="p-name">丽丽</span>
+                        <span class="p-meta">女 | 57岁</span>
+                        <span class="p-id">ID: 20251215001</span>
+                    </div>
+                    <div class="p-complaint">主诉：眠差10余年，情绪低落半年。</div>
+                    <div class="expert-status-line">
+                        <span class="label">专家响应：</span>
+                        <span class="exp-tag done">张三(内) ✓</span>
+                        <span class="exp-tag done">李四(精) ✓</span>
+                        <span class="exp-tag done">王五(神) ✓</span>
+                    </div>
+                </div>
+                <div class="task-action-col">
+                    <button class="btn btn-primary" onclick="window.location.href='assistant_detail.html?id=1'">进入会诊</button>
+                    <button class="btn btn-default" style="margin-top:8px;">修改</button>
+                    <button class="btn btn-text-danger" style="margin-top:8px;" onclick="cancelTask()">取消</button>
+                </div>
+            </div>
+
+            <!-- Card 2: Tomorrow, Pending -->
+            <div class="task-card card">
+                <div class="task-time-col">
+                    <div class="task-date">明天 09:30</div>
+                    <div class="task-status status-pending">筹备中</div>
+                </div>
+                <div class="task-info-col">
+                    <div class="patient-line">
+                        <span class="p-name">张建国</span>
+                        <span class="p-meta">男 | 45岁</span>
+                        <span class="p-id">ID: 20251216005</span>
+                    </div>
+                    <div class="p-complaint">主诉：反复头痛3年，加重伴恶心1周。</div>
+                    <div class="expert-status-line">
+                        <span class="label">专家响应：</span>
+                        <span class="exp-tag done">赵六(脑) ✓</span>
+                        <span class="exp-tag pending">钱七(心) ?</span>
+                    </div>
+                </div>
+                <div class="task-action-col">
+                    <button class="btn btn-default" disabled>未到时间</button>
+                    <button class="btn btn-default" style="margin-top:8px;">修改</button>
+                </div>
+            </div>
+
+            <!-- Card 3: Pending, Warning -->
+             <div class="task-card card">
+                <div class="task-time-col">
+                    <div class="task-date">2025-12-18 10:00</div>
+                    <div class="task-status status-pending">筹备中</div>
+                </div>
+                <div class="task-info-col">
+                    <div class="patient-line">
+                        <span class="p-name">王小明</span>
+                        <span class="p-meta">男 | 14岁</span>
+                        <span class="p-id">ID: 20251218002</span>
+                    </div>
+                    <div class="p-complaint">主诉：厌学，情绪波动大，网络成瘾倾向。</div>
+                    <div class="expert-status-line">
+                        <span class="label">专家响应：</span>
+                        <span class="exp-tag reject">孙八(心) ✕</span>
+                        <span class="exp-tag pending">周九(儿) ?</span>
+                    </div>
+                </div>
+                <div class="task-action-col">
+                    <button class="btn btn-default" onclick="alert('需要补充邀请专家')">补充邀请</button>
+                     <button class="btn btn-default" style="margin-top:8px;">修改</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals would go here -->
+    
+    <script src="script.js"></script>
+</body>
+</html>
