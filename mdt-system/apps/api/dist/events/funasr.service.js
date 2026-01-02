@@ -1,10 +1,43 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
@@ -15,11 +48,14 @@ const common_1 = require("@nestjs/common");
 const ws_1 = require("ws");
 const uuid_1 = require("uuid");
 const config_1 = require("@nestjs/config");
+const fs = __importStar(require("fs"));
+const path = __importStar(require("path"));
 let FunAsrService = FunAsrService_1 = class FunAsrService {
     constructor(configService) {
         this.configService = configService;
         this.logger = new common_1.Logger(FunAsrService_1.name);
         this.connections = new Map();
+        this.readyStates = new Map();
         this.apiKey = this.configService.get('DASHSCOPE_API_KEY') || '';
         this.wsUrl = 'wss://dashscope.aliyuncs.com/api-ws/v1/inference/';
     }
@@ -32,6 +68,7 @@ let FunAsrService = FunAsrService_1 = class FunAsrService {
             this.logger.warn(`Session for ${localTaskId} already exists.`);
             return;
         }
+        this.readyStates.set(localTaskId, false);
         const ws = new ws_1.WebSocket(this.wsUrl, {
             headers: {
                 Authorization: `bearer ${this.apiKey}`,
@@ -39,7 +76,8 @@ let FunAsrService = FunAsrService_1 = class FunAsrService {
         });
         const aliTaskId = (0, uuid_1.v4)().replace(/-/g, '').slice(0, 32);
         ws.on('open', () => {
-            this.logger.log(`Connected to FunASR for task ${localTaskId}`);
+            this.logger.log(`✅ [FunASR] Connected to Aliyun WebSocket for task ${localTaskId}`);
+            this.logger.debug(`[FunASR] Sending run-task command...`);
             this.sendRunTask(ws, aliTaskId);
         });
         ws.on('message', (data) => {
@@ -48,25 +86,42 @@ let FunAsrService = FunAsrService_1 = class FunAsrService {
                 this.handleMessage(message, localTaskId, onResult, ws);
             }
             catch (error) {
-                this.logger.error(`Failed to parse message: ${error}`);
+                this.logger.error(`❌ [FunASR] Failed to parse message: ${error}`);
             }
         });
-        ws.on('close', () => {
-            this.logger.log(`Connection closed for task ${localTaskId}`);
+        ws.on('close', (code, reason) => {
+            this.logger.log(`⚠️ [FunASR] Connection closed for task ${localTaskId}. Code: ${code}, Reason: ${reason}`);
             this.connections.delete(localTaskId);
+            this.readyStates.delete(localTaskId);
         });
         ws.on('error', (error) => {
-            this.logger.error(`WebSocket error for task ${localTaskId}: ${error}`);
+            this.logger.error(`❌ [FunASR] WebSocket error for task ${localTaskId}: ${error}`);
             this.connections.delete(localTaskId);
+            this.readyStates.delete(localTaskId);
         });
         this.connections.set(localTaskId, ws);
     }
     sendAudioChunk(localTaskId, chunk) {
         const ws = this.connections.get(localTaskId);
+        const isReady = this.readyStates.get(localTaskId);
+        try {
+            const debugPath = path.resolve(__dirname, '../../debug_audio.pcm');
+            fs.appendFileSync(debugPath, chunk);
+        }
+        catch (e) {
+            console.error('Write debug pcm failed:', e);
+        }
         if (ws && ws.readyState === ws_1.WebSocket.OPEN) {
-            ws.send(chunk);
+            if (isReady) {
+                this.logger.debug(`[FunASR] Sending audio chunk size: ${chunk.length}`);
+                ws.send(chunk, { binary: true });
+            }
+            else {
+                this.logger.debug(`[FunASR] Connection not ready yet, dropping chunk size: ${chunk.length}`);
+            }
         }
         else {
+            this.logger.warn(`[FunASR] WebSocket not open for task ${localTaskId} (State: ${ws?.readyState}), dropping chunk.`);
         }
     }
     stopSession(localTaskId) {
@@ -76,6 +131,7 @@ let FunAsrService = FunAsrService_1 = class FunAsrService {
         if (ws)
             ws.close();
         this.connections.delete(localTaskId);
+        this.readyStates.delete(localTaskId);
     }
     sendRunTask(ws, aliTaskId) {
         const runTaskMessage = {
@@ -104,6 +160,7 @@ let FunAsrService = FunAsrService_1 = class FunAsrService {
         switch (message.header.event) {
             case 'task-started':
                 this.logger.log(`FunASR Task started for ${localTaskId}`);
+                this.readyStates.set(localTaskId, true);
                 break;
             case 'result-generated':
                 if (message.payload && message.payload.output && message.payload.output.sentence) {

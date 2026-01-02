@@ -17,7 +17,7 @@ export declare class EventsGateway implements OnGatewayConnection, OnGatewayDisc
     handleStartAsr(taskId: string, client: Socket): {
         event: string;
     };
-    handleAudioData(data: Buffer, client: Socket): void;
+    handleAudioData(data: any, client: Socket): void;
     handleStopAsr(client: Socket): {
         event: string;
     };

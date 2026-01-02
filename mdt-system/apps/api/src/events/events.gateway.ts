@@ -96,11 +96,42 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // 2. 接收音频流数据
   @SubscribeMessage('audioData')
   handleAudioData(
-    @MessageBody() data: Buffer, // 接收二进制音频流
+    @MessageBody() data: any, // 先用 any 接收，看看实际类型
     @ConnectedSocket() client: Socket,
   ) {
+    // 调试日志：检查收到的数据类型和大小
+    let buffer: Buffer;
+    
+    // 打印原始数据类型，辅助调试 (开启日志)
+    this.logger.debug(`Received audio raw type: ${typeof data}, isBuffer: ${Buffer.isBuffer(data)}, isArrayBuffer: ${data instanceof ArrayBuffer}`);
+
+    if (Buffer.isBuffer(data)) {
+      buffer = data;
+      this.logger.debug(`Received audio Buffer, size: ${buffer.length}`);
+    } else if (data instanceof ArrayBuffer) {
+      buffer = Buffer.from(data);
+      this.logger.debug(`Received audio ArrayBuffer, converted size: ${buffer.length}`);
+    } else if (data && data.type === 'Buffer' && Array.isArray(data.data)) {
+       // Socket.io 有时会将 Buffer 序列化为 { type: 'Buffer', data: [...] }
+       buffer = Buffer.from(data.data);
+       this.logger.debug(`Received audio structure, restored size: ${buffer.length}`);
+    } else {
+      // 尝试直接转换，看是否是普通的数组
+      try {
+        buffer = Buffer.from(data);
+      } catch (e) {
+        this.logger.warn(`Received audio data from ${client.id} but type is unknown: ${typeof data}`);
+        return;
+      }
+    }
+
+    if (buffer.length === 0) {
+      this.logger.warn(`Received empty audio buffer from ${client.id}`);
+      return;
+    }
+
     // 转发给 FunASR 服务
-    this.funAsrService.sendAudioChunk(client.id, data);
+    this.funAsrService.sendAudioChunk(client.id, buffer);
   }
 
   // 3. 停止识别会话

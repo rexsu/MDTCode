@@ -2,6 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { WebSocket } from 'ws';
 import { v4 as uuidv4 } from 'uuid';
 import { ConfigService } from '@nestjs/config';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // 识别结果接口定义
 export interface AsrResult {
@@ -14,6 +16,7 @@ export interface AsrResult {
 export class FunAsrService {
   private logger = new Logger(FunAsrService.name);
   private connections: Map<string, WebSocket> = new Map(); // map<localTaskId, ws>
+  private readyStates: Map<string, boolean> = new Map();   // map<localTaskId, isReady>
   private apiKey: string;
   private wsUrl: string;
 
@@ -35,6 +38,9 @@ export class FunAsrService {
       return;
     }
 
+    // 初始化状态
+    this.readyStates.set(localTaskId, false);
+
     const ws = new WebSocket(this.wsUrl, {
       headers: {
         Authorization: `bearer ${this.apiKey}`,
@@ -44,27 +50,31 @@ export class FunAsrService {
     const aliTaskId = uuidv4().replace(/-/g, '').slice(0, 32);
 
     ws.on('open', () => {
-      this.logger.log(`Connected to FunASR for task ${localTaskId}`);
+      this.logger.log(`✅ [FunASR] Connected to Aliyun WebSocket for task ${localTaskId}`);
+      this.logger.debug(`[FunASR] Sending run-task command...`);
       this.sendRunTask(ws, aliTaskId);
     });
 
     ws.on('message', (data: any) => {
       try {
         const message = JSON.parse(data.toString());
+        // this.logger.debug(`[FunASR] Received message: ${JSON.stringify(message).slice(0, 200)}...`);
         this.handleMessage(message, localTaskId, onResult, ws);
       } catch (error) {
-        this.logger.error(`Failed to parse message: ${error}`);
+        this.logger.error(`❌ [FunASR] Failed to parse message: ${error}`);
       }
     });
 
-    ws.on('close', () => {
-      this.logger.log(`Connection closed for task ${localTaskId}`);
+    ws.on('close', (code, reason) => {
+      this.logger.log(`⚠️ [FunASR] Connection closed for task ${localTaskId}. Code: ${code}, Reason: ${reason}`);
       this.connections.delete(localTaskId);
+      this.readyStates.delete(localTaskId);
     });
 
     ws.on('error', (error) => {
-      this.logger.error(`WebSocket error for task ${localTaskId}: ${error}`);
+      this.logger.error(`❌ [FunASR] WebSocket error for task ${localTaskId}: ${error}`);
       this.connections.delete(localTaskId);
+      this.readyStates.delete(localTaskId);
     });
 
     this.connections.set(localTaskId, ws);
@@ -73,10 +83,27 @@ export class FunAsrService {
   // 发送音频数据块
   public sendAudioChunk(localTaskId: string, chunk: Buffer) {
     const ws = this.connections.get(localTaskId);
+    const isReady = this.readyStates.get(localTaskId);
+    
+    // Debug: 将接收到的 PCM 数据写入文件
+    try {
+        const debugPath = path.resolve(__dirname, '../../debug_audio.pcm');
+        // this.logger.debug(`Writing to debug file: ${debugPath}, size: ${chunk.length}`);
+        fs.appendFileSync(debugPath, chunk);
+    } catch (e) {
+        console.error('Write debug pcm failed:', e);
+    }
+
     if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(chunk);
+      if (isReady) {
+        this.logger.debug(`[FunASR] Sending audio chunk size: ${chunk.length}`);
+        ws.send(chunk, { binary: true }); // 显式指定 binary
+      } else {
+        // 连接还没 Ready，丢弃或暂时忽略（避免发送过早导致 1007 错误）
+        this.logger.debug(`[FunASR] Connection not ready yet, dropping chunk size: ${chunk.length}`);
+      }
     } else {
-      // this.logger.warn(`WebSocket not open for task ${localTaskId}, dropping chunk.`);
+      this.logger.warn(`[FunASR] WebSocket not open for task ${localTaskId} (State: ${ws?.readyState}), dropping chunk.`);
     }
   }
 
@@ -94,6 +121,7 @@ export class FunAsrService {
     // 简单粗暴关闭
     if (ws) ws.close();
     this.connections.delete(localTaskId);
+    this.readyStates.delete(localTaskId);
   }
 
   private sendRunTask(ws: WebSocket, aliTaskId: string) {
@@ -124,6 +152,7 @@ export class FunAsrService {
     switch (message.header.event) {
       case 'task-started':
         this.logger.log(`FunASR Task started for ${localTaskId}`);
+        this.readyStates.set(localTaskId, true); // 标记为就绪
         break;
       case 'result-generated':
         // 实时结果

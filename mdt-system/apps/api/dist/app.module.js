@@ -8,6 +8,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AppModule = void 0;
 const common_1 = require("@nestjs/common");
+const config_1 = require("@nestjs/config");
 const tasks_module_1 = require("./tasks/tasks.module");
 const prisma_module_1 = require("./prisma/prisma.module");
 const events_module_1 = require("./events/events.module");
@@ -17,6 +18,10 @@ exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
         imports: [
+            config_1.ConfigModule.forRoot({
+                isGlobal: true,
+                envFilePath: ['.env'],
+            }),
             prisma_module_1.PrismaModule,
             events_module_1.EventsModule,
             tasks_module_1.TasksModule

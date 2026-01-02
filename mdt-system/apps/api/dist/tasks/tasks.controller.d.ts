@@ -4,13 +4,13 @@ export declare class TasksController {
     private readonly tasksService;
     constructor(tasksService: TasksService);
     create(createTaskDto: CreateTaskDto): Promise<{
-        id: string;
-        status: string;
-        scheduledTime: Date;
         patientName: string;
         patientGender: string;
         patientAge: number;
         chiefComplaint: string;
+        scheduledTime: Date;
+        id: string;
+        status: string;
         createdAt: Date;
         updatedAt: Date;
     }>;
@@ -20,10 +20,10 @@ export declare class TasksController {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
+                role: string;
                 username: string;
                 password: string;
                 realName: string;
-                role: string;
             };
         } & {
             id: string;
@@ -35,23 +35,23 @@ export declare class TasksController {
             respondedAt: Date | null;
         })[];
     } & {
-        id: string;
-        status: string;
-        scheduledTime: Date;
         patientName: string;
         patientGender: string;
         patientAge: number;
         chiefComplaint: string;
+        scheduledTime: Date;
+        id: string;
+        status: string;
         createdAt: Date;
         updatedAt: Date;
     })[]>;
     findOne(id: string): Promise<{
         preDoc: {
-            id: string;
-            taskId: string;
             presentIllness: string;
             pastHistory: string | null;
             familyHistory: string | null;
+            id: string;
+            taskId: string;
             extraInfo: string | null;
         };
         dialogs: {
@@ -78,10 +78,10 @@ export declare class TasksController {
                     id: string;
                     createdAt: Date;
                     updatedAt: Date;
+                    role: string;
                     username: string;
                     password: string;
                     realName: string;
-                    role: string;
                 };
             } & {
                 id: string;
@@ -96,12 +96,12 @@ export declare class TasksController {
             updatedAt: Date;
             taskId: string;
             isSubmitted: boolean;
-            expertProfileId: string;
             audioUrl: string | null;
             asrText: string | null;
             aiStructured: string | null;
             isAiAdopted: boolean;
             finalText: string | null;
+            expertProfileId: string;
         })[];
         report: {
             id: string;
@@ -127,10 +127,10 @@ export declare class TasksController {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
+                role: string;
                 username: string;
                 password: string;
                 realName: string;
-                role: string;
             };
         } & {
             id: string;
@@ -150,24 +150,24 @@ export declare class TasksController {
             details: string | null;
         }[];
     } & {
-        id: string;
-        status: string;
-        scheduledTime: Date;
         patientName: string;
         patientGender: string;
         patientAge: number;
         chiefComplaint: string;
+        scheduledTime: Date;
+        id: string;
+        status: string;
         createdAt: Date;
         updatedAt: Date;
     }>;
     updateStatus(id: string, status: string): Promise<{
-        id: string;
-        status: string;
-        scheduledTime: Date;
         patientName: string;
         patientGender: string;
         patientAge: number;
         chiefComplaint: string;
+        scheduledTime: Date;
+        id: string;
+        status: string;
         createdAt: Date;
         updatedAt: Date;
     }>;
@@ -204,10 +204,10 @@ export declare class TasksController {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
+                role: string;
                 username: string;
                 password: string;
                 realName: string;
-                role: string;
             };
         } & {
             id: string;
@@ -222,12 +222,12 @@ export declare class TasksController {
         updatedAt: Date;
         taskId: string;
         isSubmitted: boolean;
-        expertProfileId: string;
         audioUrl: string | null;
         asrText: string | null;
         aiStructured: string | null;
         isAiAdopted: boolean;
         finalText: string | null;
+        expertProfileId: string;
     }>;
     toggleOpinionAdoption(id: string, isAdopted: boolean): Promise<{
         id: string;
@@ -235,12 +235,12 @@ export declare class TasksController {
         updatedAt: Date;
         taskId: string;
         isSubmitted: boolean;
-        expertProfileId: string;
         audioUrl: string | null;
         asrText: string | null;
         aiStructured: string | null;
         isAiAdopted: boolean;
         finalText: string | null;
+        expertProfileId: string;
     }>;
     createReport(id: string): Promise<{
         id: string;

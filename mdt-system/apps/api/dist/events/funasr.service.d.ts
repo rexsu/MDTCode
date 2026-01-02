@@ -8,6 +8,7 @@ export declare class FunAsrService {
     private configService;
     private logger;
     private connections;
+    private readyStates;
     private apiKey;
     private wsUrl;
     constructor(configService: ConfigService);

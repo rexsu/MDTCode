@@ -61,7 +61,34 @@ let EventsGateway = class EventsGateway {
         return { event: 'asrStarted' };
     }
     handleAudioData(data, client) {
-        this.funAsrService.sendAudioChunk(client.id, data);
+        let buffer;
+        this.logger.debug(`Received audio raw type: ${typeof data}, isBuffer: ${Buffer.isBuffer(data)}, isArrayBuffer: ${data instanceof ArrayBuffer}`);
+        if (Buffer.isBuffer(data)) {
+            buffer = data;
+            this.logger.debug(`Received audio Buffer, size: ${buffer.length}`);
+        }
+        else if (data instanceof ArrayBuffer) {
+            buffer = Buffer.from(data);
+            this.logger.debug(`Received audio ArrayBuffer, converted size: ${buffer.length}`);
+        }
+        else if (data && data.type === 'Buffer' && Array.isArray(data.data)) {
+            buffer = Buffer.from(data.data);
+            this.logger.debug(`Received audio structure, restored size: ${buffer.length}`);
+        }
+        else {
+            try {
+                buffer = Buffer.from(data);
+            }
+            catch (e) {
+                this.logger.warn(`Received audio data from ${client.id} but type is unknown: ${typeof data}`);
+                return;
+            }
+        }
+        if (buffer.length === 0) {
+            this.logger.warn(`Received empty audio buffer from ${client.id}`);
+            return;
+        }
+        this.funAsrService.sendAudioChunk(client.id, buffer);
     }
     handleStopAsr(client) {
         this.logger.log(`Stop ASR session for client ${client.id}`);
@@ -103,8 +130,7 @@ __decorate([
     __param(0, (0, websockets_1.MessageBody)()),
     __param(1, (0, websockets_1.ConnectedSocket)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Buffer,
-        socket_io_1.Socket]),
+    __metadata("design:paramtypes", [Object, socket_io_1.Socket]),
     __metadata("design:returntype", void 0)
 ], EventsGateway.prototype, "handleAudioData", null);
 __decorate([

@@ -33,6 +33,7 @@ export default function ExpertConsultationTab({ dialogs, onRefresh }: Props) {
   // Web Audio API 相关引用
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const audioSourceRef = useRef<MediaStreamAudioSourceNode | null>(null); // 新增 source ref 防止 GC
   const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
   const socket = useSocket();
 
@@ -40,15 +41,9 @@ export default function ExpertConsultationTab({ dialogs, onRefresh }: Props) {
   useEffect(() => {
     if (socket) {
       const handleAsrResult = (data: { taskId: string; text: string; isFinal: boolean }) => {
+        // console.log('[ASR Result]', data); // Debug log
         if (data.taskId === taskId) {
-           if (data.isFinal) {
-             setRealtimeText(prev => prev + data.text);
-             // 自动刷新列表以显示最新入库的对话（如果后端做了自动保存）
-             // 目前后端逻辑是前端手动提交，所以这里只更新实时文本
-           } else {
-             // 临时中间结果
-             // setRealtimeText(prev => prev + data.text); // 简单追加，实际需要处理覆盖逻辑
-           }
+           setRealtimeText(prev => data.text);
         }
       };
       socket.on('asrResult', handleAsrResult);
@@ -66,49 +61,76 @@ export default function ExpertConsultationTab({ dialogs, onRefresh }: Props) {
     }
 
     try {
+      console.log('Requesting microphone access...');
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaStreamRef.current = stream;
+      console.log('Microphone access granted.');
 
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      const audioContext = new AudioContextClass({ sampleRate: 16000 }); // FunASR 要求 16k
+      // 移除强制 sampleRate: 16000，使用系统默认值以避免某些浏览器/硬件不支持导致 context 挂起或不触发回调
+      const audioContext = new AudioContextClass(); 
       audioContextRef.current = audioContext;
+      console.log('AudioContext created, state:', audioContext.state);
+      
+      if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+        console.log('AudioContext resumed, state:', audioContext.state);
+      }
 
+      // 使用 ScriptProcessorNode (确保兼容性和简单性，排查 AudioWorklet 加载问题)
       const source = audioContext.createMediaStreamSource(stream);
-      // bufferSize: 2048, inputChannels: 1, outputChannels: 1
-      const processor = audioContext.createScriptProcessor(2048, 1, 1);
-      scriptProcessorRef.current = processor;
+      audioSourceRef.current = source; // 保持引用
 
+      // bufferSize: 4096 (约 0.085s at 48k)
+      const processor = audioContext.createScriptProcessor(4096, 1, 1);
+      scriptProcessorRef.current = processor;
+      console.log('ScriptProcessor created, bufferSize:', processor.bufferSize);
+      
       processor.onaudioprocess = (e) => {
+        // console.log('onaudioprocess triggered'); // 极端调试
         if (!isRecording) return;
         
         const inputData = e.inputBuffer.getChannelData(0);
-        // 将 float32 转为 int16 (PCM)
-        const pcmData = float32ToInt16(inputData);
+        const currentSampleRate = audioContext.sampleRate;
         
-        // 通过 socket 发送二进制数据
-        socket.emit('audioData', pcmData.buffer);
+        // 降采样并转换为 16k PCM
+        const pcmData = downsampleBuffer(inputData, currentSampleRate, 16000);
+        
+        if (pcmData.length > 0) {
+          console.log(`Sending PCM data: ${pcmData.byteLength} bytes`); 
+          socket.emit('audioData', pcmData.buffer);
+        }
       };
 
       source.connect(processor);
       processor.connect(audioContext.destination);
 
       // 通知后端开启 ASR 会话
+      console.log('Emitting startAsr event...');
       socket.emit('startAsr', taskId);
       
       setIsRecording(true);
       message.success('开始实时语音识别');
     } catch (err) {
-      console.error('无法获取麦克风权限', err);
+      console.error('无法获取麦克风权限或启动录音失败', err);
       message.error('无法启动录音，请检查麦克风权限');
     }
   };
 
   // 停止录音
   const stopRecording = () => {
+    console.log('Stopping recording...');
     if (scriptProcessorRef.current) {
       scriptProcessorRef.current.disconnect();
+      scriptProcessorRef.current.onaudioprocess = null;
       scriptProcessorRef.current = null;
     }
+    
+    if (audioSourceRef.current) {
+      audioSourceRef.current.disconnect();
+      audioSourceRef.current = null;
+    }
+
     if (audioContextRef.current) {
       audioContextRef.current.close();
       audioContextRef.current = null;
@@ -125,14 +147,41 @@ export default function ExpertConsultationTab({ dialogs, onRefresh }: Props) {
     setIsRecording(false);
   };
 
-  // 辅助函数：Float32Array 转 Int16Array
-  const float32ToInt16 = (buffer: Float32Array) => {
-    let l = buffer.length;
-    let buf = new Int16Array(l);
-    while (l--) {
-      buf[l] = Math.min(1, buffer[l]) * 0x7FFF;
+  // 降采样 + Float32转Int16 (Little Endian)
+  const downsampleBuffer = (buffer: Float32Array, sampleRate: number, outSampleRate: number) => {
+    let resultBuffer: Float32Array;
+    
+    if (outSampleRate === sampleRate) {
+      resultBuffer = buffer;
+    } else {
+      const sampleRateRatio = sampleRate / outSampleRate;
+      const newLength = Math.round(buffer.length / sampleRateRatio);
+      resultBuffer = new Float32Array(newLength);
+      let offsetResult = 0;
+      let offsetBuffer = 0;
+      
+      while (offsetResult < newLength) {
+        const nextOffsetBuffer = Math.round((offsetResult + 1) * sampleRateRatio);
+        let accum = 0, count = 0;
+        for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
+          accum += buffer[i];
+          count++;
+        }
+        resultBuffer[offsetResult] = accum / count;
+        offsetResult++;
+        offsetBuffer = nextOffsetBuffer;
+      }
     }
-    return buf;
+    
+    // Convert Float32 to Int16 (Little Endian)
+    const output = new DataView(new ArrayBuffer(resultBuffer.length * 2));
+    for (let i = 0; i < resultBuffer.length; i++) {
+      const s = Math.max(-1, Math.min(1, resultBuffer[i]));
+      // 0x7FFF = 32767
+      output.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true); // true for Little Endian
+    }
+    
+    return new Int8Array(output.buffer);
   };
 
   const handleToggleRecord = () => {
