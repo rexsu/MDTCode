@@ -65,15 +65,12 @@ let EventsGateway = class EventsGateway {
         this.logger.debug(`Received audio raw type: ${typeof data}, isBuffer: ${Buffer.isBuffer(data)}, isArrayBuffer: ${data instanceof ArrayBuffer}`);
         if (Buffer.isBuffer(data)) {
             buffer = data;
-            this.logger.debug(`Received audio Buffer, size: ${buffer.length}`);
         }
         else if (data instanceof ArrayBuffer) {
             buffer = Buffer.from(data);
-            this.logger.debug(`Received audio ArrayBuffer, converted size: ${buffer.length}`);
         }
         else if (data && data.type === 'Buffer' && Array.isArray(data.data)) {
             buffer = Buffer.from(data.data);
-            this.logger.debug(`Received audio structure, restored size: ${buffer.length}`);
         }
         else {
             try {

@@ -48,7 +48,6 @@ const common_1 = require("@nestjs/common");
 const ws_1 = require("ws");
 const uuid_1 = require("uuid");
 const config_1 = require("@nestjs/config");
-const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 let FunAsrService = FunAsrService_1 = class FunAsrService {
     constructor(configService) {
@@ -56,8 +55,12 @@ let FunAsrService = FunAsrService_1 = class FunAsrService {
         this.logger = new common_1.Logger(FunAsrService_1.name);
         this.connections = new Map();
         this.readyStates = new Map();
+        this.model = 'qwen3-asr-flash-realtime';
         this.apiKey = this.configService.get('DASHSCOPE_API_KEY') || '';
         this.wsUrl = 'wss://dashscope.aliyuncs.com/api-ws/v1/inference/';
+    }
+    isQwenModel(model) {
+        return model.includes('qwen');
     }
     startSession(localTaskId, onResult) {
         if (!this.apiKey) {
@@ -69,7 +72,12 @@ let FunAsrService = FunAsrService_1 = class FunAsrService {
             return;
         }
         this.readyStates.set(localTaskId, false);
-        const ws = new ws_1.WebSocket(this.wsUrl, {
+        let url = this.wsUrl;
+        if (this.isQwenModel(this.model)) {
+            url = `wss://dashscope.aliyuncs.com/api-ws/v1/realtime?model=${this.model}`;
+        }
+        this.logger.log(`Connecting to ${url} for task ${localTaskId}`);
+        const ws = new ws_1.WebSocket(url, {
             headers: {
                 Authorization: `bearer ${this.apiKey}`,
             },
@@ -77,13 +85,24 @@ let FunAsrService = FunAsrService_1 = class FunAsrService {
         const aliTaskId = (0, uuid_1.v4)().replace(/-/g, '').slice(0, 32);
         ws.on('open', () => {
             this.logger.log(`✅ [FunASR] Connected to Aliyun WebSocket for task ${localTaskId}`);
-            this.logger.debug(`[FunASR] Sending run-task command...`);
-            this.sendRunTask(ws, aliTaskId);
+            if (this.isQwenModel(this.model)) {
+                this.readyStates.set(localTaskId, true);
+                this.sendQwenSessionUpdate(ws);
+            }
+            else {
+                this.logger.debug(`[FunASR] Sending run-task command...`);
+                this.sendRunTask(ws, aliTaskId);
+            }
         });
         ws.on('message', (data) => {
             try {
                 const message = JSON.parse(data.toString());
-                this.handleMessage(message, localTaskId, onResult, ws);
+                if (this.isQwenModel(this.model)) {
+                    this.handleQwenMessage(message, localTaskId, onResult, ws);
+                }
+                else {
+                    this.handleMessage(message, localTaskId, onResult, ws);
+                }
             }
             catch (error) {
                 this.logger.error(`❌ [FunASR] Failed to parse message: ${error}`);
@@ -106,22 +125,27 @@ let FunAsrService = FunAsrService_1 = class FunAsrService {
         const isReady = this.readyStates.get(localTaskId);
         try {
             const debugPath = path.resolve(__dirname, '../../debug_audio.pcm');
-            fs.appendFileSync(debugPath, chunk);
         }
         catch (e) {
-            console.error('Write debug pcm failed:', e);
         }
         if (ws && ws.readyState === ws_1.WebSocket.OPEN) {
             if (isReady) {
-                this.logger.debug(`[FunASR] Sending audio chunk size: ${chunk.length}`);
-                ws.send(chunk, { binary: true });
+                if (this.isQwenModel(this.model)) {
+                    const event = {
+                        type: 'input_audio_buffer.append',
+                        audio: chunk.toString('base64'),
+                    };
+                    ws.send(JSON.stringify(event));
+                }
+                else {
+                    ws.send(chunk, { binary: true });
+                }
             }
             else {
                 this.logger.debug(`[FunASR] Connection not ready yet, dropping chunk size: ${chunk.length}`);
             }
         }
         else {
-            this.logger.warn(`[FunASR] WebSocket not open for task ${localTaskId} (State: ${ws?.readyState}), dropping chunk.`);
         }
     }
     stopSession(localTaskId) {
@@ -132,6 +156,42 @@ let FunAsrService = FunAsrService_1 = class FunAsrService {
             ws.close();
         this.connections.delete(localTaskId);
         this.readyStates.delete(localTaskId);
+    }
+    sendQwenSessionUpdate(ws) {
+        const sessionUpdate = {
+            type: 'session.update',
+            session: {
+                input_audio_format: 'pcm',
+            },
+        };
+        ws.send(JSON.stringify(sessionUpdate));
+    }
+    handleQwenMessage(message, localTaskId, onResult, ws) {
+        switch (message.type) {
+            case 'session.created':
+                this.logger.log(`Qwen Session created: ${message.session?.id}`);
+                break;
+            case 'input_audio_buffer.speech_started':
+                this.logger.debug('Speech started');
+                break;
+            case 'conversation.item.input_audio_transcription.completed':
+                if (message.transcript) {
+                    onResult({
+                        text: message.transcript,
+                        isFinal: true,
+                        taskId: localTaskId
+                    });
+                }
+                break;
+            case 'conversation.item.input_audio_transcription.failed':
+                this.logger.error(`Transcription failed: ${message.error?.message}`);
+                break;
+            case 'error':
+                this.logger.error(`Qwen Error: ${message.error?.message}`);
+                break;
+            default:
+                break;
+        }
     }
     sendRunTask(ws, aliTaskId) {
         const runTaskMessage = {
@@ -144,7 +204,7 @@ let FunAsrService = FunAsrService_1 = class FunAsrService {
                 task_group: 'audio',
                 task: 'asr',
                 function: 'recognition',
-                model: 'fun-asr-realtime',
+                model: 'qwen3-asr-flash',
                 parameters: {
                     sample_rate: 16000,
                     format: 'pcm',

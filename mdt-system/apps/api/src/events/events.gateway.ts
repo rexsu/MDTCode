@@ -107,14 +107,14 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     if (Buffer.isBuffer(data)) {
       buffer = data;
-      this.logger.debug(`Received audio Buffer, size: ${buffer.length}`);
+      // this.logger.debug(`Received audio Buffer, size: ${buffer.length}`);
     } else if (data instanceof ArrayBuffer) {
       buffer = Buffer.from(data);
-      this.logger.debug(`Received audio ArrayBuffer, converted size: ${buffer.length}`);
+      // this.logger.debug(`Received audio ArrayBuffer, converted size: ${buffer.length}`);
     } else if (data && data.type === 'Buffer' && Array.isArray(data.data)) {
        // Socket.io 有时会将 Buffer 序列化为 { type: 'Buffer', data: [...] }
        buffer = Buffer.from(data.data);
-       this.logger.debug(`Received audio structure, restored size: ${buffer.length}`);
+       // this.logger.debug(`Received audio structure, restored size: ${buffer.length}`);
     } else {
       // 尝试直接转换，看是否是普通的数组
       try {

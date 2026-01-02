@@ -19,11 +19,15 @@ export class FunAsrService {
   private readyStates: Map<string, boolean> = new Map();   // map<localTaskId, isReady>
   private apiKey: string;
   private wsUrl: string;
+  private model: string = 'qwen3-asr-flash-realtime'; // 默认模型，可配置
 
   constructor(private configService: ConfigService) {
     this.apiKey = this.configService.get<string>('DASHSCOPE_API_KEY') || '';
-    // 北京地域 URL
     this.wsUrl = 'wss://dashscope.aliyuncs.com/api-ws/v1/inference/';
+  }
+
+  private isQwenModel(model: string): boolean {
+    return model.includes('qwen');
   }
 
   // 启动一个新的识别任务会话
@@ -41,7 +45,15 @@ export class FunAsrService {
     // 初始化状态
     this.readyStates.set(localTaskId, false);
 
-    const ws = new WebSocket(this.wsUrl, {
+    // 根据模型选择 URL
+    let url = this.wsUrl;
+    if (this.isQwenModel(this.model)) {
+        url = `wss://dashscope.aliyuncs.com/api-ws/v1/realtime?model=${this.model}`;
+    }
+
+    this.logger.log(`Connecting to ${url} for task ${localTaskId}`);
+
+    const ws = new WebSocket(url, {
       headers: {
         Authorization: `bearer ${this.apiKey}`,
       },
@@ -51,15 +63,28 @@ export class FunAsrService {
 
     ws.on('open', () => {
       this.logger.log(`✅ [FunASR] Connected to Aliyun WebSocket for task ${localTaskId}`);
-      this.logger.debug(`[FunASR] Sending run-task command...`);
-      this.sendRunTask(ws, aliTaskId);
+      
+      if (this.isQwenModel(this.model)) {
+          // Qwen 协议：连接建立即视为 Ready，可以开始发 session.update 或直接发音频
+          this.readyStates.set(localTaskId, true);
+          this.sendQwenSessionUpdate(ws);
+      } else {
+          // FunASR 协议：需要发送 run-task
+          this.logger.debug(`[FunASR] Sending run-task command...`);
+          this.sendRunTask(ws, aliTaskId);
+      }
     });
 
     ws.on('message', (data: any) => {
       try {
         const message = JSON.parse(data.toString());
         // this.logger.debug(`[FunASR] Received message: ${JSON.stringify(message).slice(0, 200)}...`);
-        this.handleMessage(message, localTaskId, onResult, ws);
+        
+        if (this.isQwenModel(this.model)) {
+            this.handleQwenMessage(message, localTaskId, onResult, ws);
+        } else {
+            this.handleMessage(message, localTaskId, onResult, ws);
+        }
       } catch (error) {
         this.logger.error(`❌ [FunASR] Failed to parse message: ${error}`);
       }
@@ -88,22 +113,32 @@ export class FunAsrService {
     // Debug: 将接收到的 PCM 数据写入文件
     try {
         const debugPath = path.resolve(__dirname, '../../debug_audio.pcm');
-        // this.logger.debug(`Writing to debug file: ${debugPath}, size: ${chunk.length}`);
-        fs.appendFileSync(debugPath, chunk);
+        // fs.appendFileSync(debugPath, chunk);
     } catch (e) {
-        console.error('Write debug pcm failed:', e);
+        // console.error('Write debug pcm failed:', e);
     }
 
     if (ws && ws.readyState === WebSocket.OPEN) {
       if (isReady) {
-        this.logger.debug(`[FunASR] Sending audio chunk size: ${chunk.length}`);
-        ws.send(chunk, { binary: true }); // 显式指定 binary
+        // this.logger.debug(`[FunASR] Sending audio chunk size: ${chunk.length}`);
+        
+        if (this.isQwenModel(this.model)) {
+            // Qwen 协议：使用 JSON 事件发送 Base64 音频
+            const event = {
+                type: 'input_audio_buffer.append',
+                audio: chunk.toString('base64'),
+            };
+            ws.send(JSON.stringify(event));
+        } else {
+            // FunASR 协议：直接发送二进制
+            ws.send(chunk, { binary: true }); 
+        }
       } else {
-        // 连接还没 Ready，丢弃或暂时忽略（避免发送过早导致 1007 错误）
         this.logger.debug(`[FunASR] Connection not ready yet, dropping chunk size: ${chunk.length}`);
       }
     } else {
-      this.logger.warn(`[FunASR] WebSocket not open for task ${localTaskId} (State: ${ws?.readyState}), dropping chunk.`);
+      // 降低日志频率，避免刷屏
+      // this.logger.warn(`[FunASR] WebSocket not open for task ${localTaskId} (State: ${ws?.readyState}), dropping chunk.`);
     }
   }
 
@@ -124,6 +159,52 @@ export class FunAsrService {
     this.readyStates.delete(localTaskId);
   }
 
+  private sendQwenSessionUpdate(ws: WebSocket) {
+    const sessionUpdate = {
+        type: 'session.update',
+        session: {
+            input_audio_format: 'pcm', // 支持 pcm 或 g711_ulaw 等
+            // turn_detection: { type: 'server_vad' }, // 开启服务端 VAD
+        },
+    };
+    ws.send(JSON.stringify(sessionUpdate));
+  }
+
+  private handleQwenMessage(message: any, localTaskId: string, onResult: (res: AsrResult) => void, ws: WebSocket) {
+    // 处理 Qwen 协议的事件
+    // 常见事件: input_audio_buffer.committed, input_audio_buffer.speech_started, conversation.item.input_audio_transcription.completed
+    
+    switch (message.type) {
+        case 'session.created':
+            this.logger.log(`Qwen Session created: ${message.session?.id}`);
+            break;
+        case 'input_audio_buffer.speech_started':
+            this.logger.debug('Speech started');
+            break;
+        case 'conversation.item.input_audio_transcription.completed':
+            // 最终结果
+            if (message.transcript) {
+                onResult({
+                    text: message.transcript,
+                    isFinal: true,
+                    taskId: localTaskId
+                });
+            }
+            break;
+        case 'conversation.item.input_audio_transcription.failed':
+            this.logger.error(`Transcription failed: ${message.error?.message}`);
+            break;
+        case 'error':
+            this.logger.error(`Qwen Error: ${message.error?.message}`);
+            break;
+        default:
+            // 实时中间结果通常通过 response.audio_transcript.delta 或类似事件返回，具体依赖模型版本
+            // 对于 qwen-realtime，中间结果可能在 response.content_part.added 或 response.audio_transcript.delta 中
+            // 这里暂只处理 completed 事件
+            break;
+    }
+  }
+
   private sendRunTask(ws: WebSocket, aliTaskId: string) {
     const runTaskMessage = {
       header: {
@@ -135,7 +216,7 @@ export class FunAsrService {
         task_group: 'audio',
         task: 'asr',
         function: 'recognition',
-        model: 'fun-asr-realtime',
+        model: 'qwen3-asr-flash', // 使用标准的实时语音识别模型
         parameters: {
           sample_rate: 16000,
           format: 'pcm', // 前端录音通常是 pcm 或 wav，这里假设传输裸流

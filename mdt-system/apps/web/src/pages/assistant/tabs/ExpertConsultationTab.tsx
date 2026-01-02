@@ -35,6 +35,7 @@ export default function ExpertConsultationTab({ dialogs, onRefresh }: Props) {
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioSourceRef = useRef<MediaStreamAudioSourceNode | null>(null); // 新增 source ref 防止 GC
   const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
+  const isRecordingRef = useRef<boolean>(false); // 使用 Ref 追踪录音状态，避免闭包陷阱
   const socket = useSocket();
 
   // 监听 ASR 结果
@@ -88,7 +89,7 @@ export default function ExpertConsultationTab({ dialogs, onRefresh }: Props) {
       
       processor.onaudioprocess = (e) => {
         // console.log('onaudioprocess triggered'); // 极端调试
-        if (!isRecording) return;
+        if (!isRecordingRef.current) return;
         
         const inputData = e.inputBuffer.getChannelData(0);
         const currentSampleRate = audioContext.sampleRate;
@@ -97,7 +98,7 @@ export default function ExpertConsultationTab({ dialogs, onRefresh }: Props) {
         const pcmData = downsampleBuffer(inputData, currentSampleRate, 16000);
         
         if (pcmData.length > 0) {
-          console.log(`Sending PCM data: ${pcmData.byteLength} bytes`); 
+          // console.log(`Sending PCM data: ${pcmData.byteLength} bytes`); 
           socket.emit('audioData', pcmData.buffer);
         }
       };
@@ -110,6 +111,7 @@ export default function ExpertConsultationTab({ dialogs, onRefresh }: Props) {
       socket.emit('startAsr', taskId);
       
       setIsRecording(true);
+      isRecordingRef.current = true;
       message.success('开始实时语音识别');
     } catch (err) {
       console.error('无法获取麦克风权限或启动录音失败', err);
@@ -145,6 +147,7 @@ export default function ExpertConsultationTab({ dialogs, onRefresh }: Props) {
     }
     
     setIsRecording(false);
+    isRecordingRef.current = false;
   };
 
   // 降采样 + Float32转Int16 (Little Endian)
